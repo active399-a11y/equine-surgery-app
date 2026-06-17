@@ -51,11 +51,18 @@
 ```
 equine-surgery-app/
 ├─ app.py                     # Streamlit本体（3タブ: 撮影&色解析 / チェックリスト / 症例記録）
-├─ start_app.ps1 / アプリ起動.bat  # ユーザーが自分で起動するランチャー（Streamlit+トンネル+QR）
+├─ start_app.ps1 / アプリ起動.bat  # ローカル起動ランチャー（Streamlit+トンネル+QR）
+├─ DEPLOY.md                  # クラウド常時稼働(Streamlit Cloud+Googleシート)の手順
+├─ assets/app_icon_*.png      # iPad/iPhoneアプリ用アイコン（PWA）
+├─ .streamlit/secrets.toml.example  # gsheets接続の雛形（実secretsはgitignore）
 ├─ surgery_app/
 │  ├─ color_analysis.py       # ROIの色をRGB/HSVで数値化＋3段階ヒント（Pillow+NumPy）
 │  ├─ labs.py                 # 記録する検査値5項目の定義（Ht/乳酸/WBC/腹水乳酸/K）
-│  └─ storage.py              # 症例記録の保存/読込（data/ にローカル保存）
+│  ├─ config.py               # 撮影ターゲット・列定義・フラット化（app/storage共通）
+│  ├─ pwa.py                  # 起動時にStreamlitのindex.htmlへApple用PWAメタを注入
+│  ├─ storage.py              # 保存先の切替役（secretsにgsheetsがあればクラウド）
+│  ├─ storage_local.py        # ローカルファイル保存（data/）
+│  └─ storage_sheets.py       # Googleスプレッドシート保存（クラウド常時稼働用）
 ├─ data/                      # 症例データ（.gitignore済み・外部送信しない）
 ├─ requirements.txt
 ├─ README.md                  # セットアップ・HTTPS手順・使い方・倫理メモ・ロードマップ
