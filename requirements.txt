@@ -1,0 +1,11 @@
+# 馬開腹手術支援アプリ — 依存パッケージ
+# Python 3.14 では OpenCV のビルド済みwheelが無いため、
+# 色解析は Pillow + NumPy で実装している（OpenCV不使用）。
+streamlit>=1.40
+pillow>=10.0
+numpy>=1.26
+pandas>=2.0
+# スマホの背面カメラ(術野向き)で撮影するための専用コンポーネント
+streamlit-back-camera-input>=0.1.1
+# クラウド常時稼働時のデータ保存先（Googleスプレッドシート）
+st-gsheets-connection>=0.1.0

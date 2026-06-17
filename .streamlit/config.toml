@@ -1,0 +1,17 @@
+# Streamlit 設定 — 手術室での視認性を優先した配色とレイアウト
+[theme]
+base = "light"
+primaryColor = "#c2185b"          # 漿膜の赤系をイメージしたアクセント色
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f4f4f6"
+textColor = "#1a1a1a"
+font = "sans serif"
+
+[server]
+# スマホからのアップロード画像を考慮して上限を上げる
+maxUploadSize = 50
+# 同一LAN内のスマホからアクセスする想定
+headless = true
+
+[browser]
+gatherUsageStats = false

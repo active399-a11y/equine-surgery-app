@@ -1,0 +1,17 @@
+# 症例データ（患者情報・術中画像）は絶対にリポジトリに含めない
+data/
+*.log
+
+# 秘密情報（サービスアカウント鍵など）は絶対にコミットしない
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
