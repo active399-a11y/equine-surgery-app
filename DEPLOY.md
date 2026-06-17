@@ -23,17 +23,9 @@
 
 ---
 
-## STEP 1. GitHub にコードを上げる
-1. https://github.com でアカウント作成（無料）。
-2. 右上「＋」→ New repository → 名前 `equine-surgery-app` →「Private」を選択 → Create。
-3. このフォルダで以下を実行（Damiさんのユーザー名に置き換え）：
-   ```powershell
-   cd C:\Users\d-miy\equine-surgery-app
-   git remote add origin https://github.com/＜ユーザー名＞/equine-surgery-app.git
-   git branch -M main
-   git push -u origin main
-   ```
-   （初回はGitHubのログインを求められます。data/ と secrets.toml は除外設定済みなので上がりません）
+## STEP 1. GitHub にコードを上げる ✅ 完了済み
+- リポジトリ作成・push済み: https://github.com/active399-a11y/equine-surgery-app （Private・ブランチ`main`）
+- 以降コードを直したら `git push` で自動反映されます（data/ と secrets.toml は除外設定済み）。
 
 ---
 
