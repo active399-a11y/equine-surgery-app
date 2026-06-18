@@ -25,6 +25,11 @@ def _backend():
     return storage_local
 
 
+def backend_name() -> str:
+    """現在の保存先 'gsheets'（クラウド）または 'local'（PC内）。"""
+    return "gsheets" if _use_sheets() else "local"
+
+
 def new_case_id() -> str:
     return _backend().new_case_id()
 

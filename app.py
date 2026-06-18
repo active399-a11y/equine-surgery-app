@@ -43,6 +43,12 @@ st.caption(
     "所見の客観的記録と整理が目的です。最終判断は必ず術者が行ってください。"
 )
 
+# 現在の保存先を明示（クラウド常時稼働 / このPC内）
+if storage.backend_name() == "gsheets":
+    st.caption("💾 保存先: **Googleスプレッドシート（クラウド）**")
+else:
+    st.caption("💾 保存先: **このPC内（data/）**　※クラウド保存にはsecrets設定が必要")
+
 with st.sidebar:
     st.header("症例設定")
     condition = st.radio("対象病態", list(COLOR_TARGETS.keys()), key="condition")
@@ -182,12 +188,20 @@ if st.button("💾 この症例をまとめて保存", type="primary", width="st
         "outcome": outcome,
         "notes": notes,
     }
-    storage.save_case(record)
-    st.success(f"症例 {case_id} を保存しました（撮影 {len(color_record)} か所・検査値含む）。")
+    try:
+        storage.save_case(record)
+        st.success(f"症例 {case_id} を保存しました（撮影 {len(color_record)} か所・検査値含む）。")
+    except Exception as e:  # クラウド接続不良などで落とさず原因を提示
+        st.error(f"保存に失敗しました: {e}\n"
+                 "クラウド保存の場合、シート共有・Secrets設定をご確認ください（DEPLOY.md）。")
 
 st.divider()
 st.header("保存済み症例 ・ 転帰更新 ・ 出力")
-index = storage.load_index()
+try:
+    index = storage.load_index()
+except Exception as e:
+    st.error(f"症例一覧の読込に失敗しました: {e}")
+    index = []
 if not index:
     st.info("まだ保存された症例はありません。")
 else:
@@ -198,15 +212,20 @@ else:
             "decision": "判断", "outcome": "転帰",
         },
     )
-    st.caption(f"合計 {len(index)} 症例。データは data/ にのみ保存されます（外部送信なし）。")
+    _loc = ("Googleスプレッドシート（クラウド）" if storage.backend_name() == "gsheets"
+            else "このPC内 data/（外部送信なし）")
+    st.caption(f"合計 {len(index)} 症例。保存先: {_loc}。")
 
     # --- CSV出力（表計算で開ける） ---
-    df = storage.cases_dataframe()
-    csv = df.to_csv(index=False).encode("utf-8-sig")  # BOM付きでExcelの文字化け回避
-    st.download_button(
-        "⬇ 結果一覧をCSVで出力（Excel等で開けます）",
-        data=csv, file_name="equine_cases.csv", mime="text/csv", width="stretch",
-    )
+    try:
+        df = storage.cases_dataframe()
+        csv = df.to_csv(index=False).encode("utf-8-sig")  # BOM付きでExcel文字化け回避
+        st.download_button(
+            "⬇ 結果一覧をCSVで出力（Excel等で開けます）",
+            data=csv, file_name="equine_cases.csv", mime="text/csv", width="stretch",
+        )
+    except Exception as e:
+        st.warning(f"CSV出力の生成に失敗しました: {e}")
 
     # --- 数日後に判明する転帰を後から更新 ---
     st.subheader("転帰を後から更新")
