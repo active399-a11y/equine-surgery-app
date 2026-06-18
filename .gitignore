@@ -9,6 +9,7 @@ data/
 __pycache__/
 *.pyc
 .venv/
+.venv_check/
 venv/
 env/
 
