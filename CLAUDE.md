@@ -53,6 +53,9 @@ equine-surgery-app/
 ├─ app.py                     # Streamlit本体（3タブ: 撮影&色解析 / チェックリスト / 症例記録）
 ├─ start_app.ps1 / アプリ起動.bat  # ローカル起動ランチャー（Streamlit+トンネル+QR）
 ├─ DEPLOY.md                  # クラウド常時稼働(Streamlit Cloud+Googleシート)の手順
+├─ tests/                     # pytest 27件（color/labs/config/storage_local/storage_sheets[fake]）
+├─ analysis/summarize_cases.py # 研究用集計(切除vs温存・生存vs死亡の色値/検査値比較)
+├─ .github/workflows/ci.yml   # push/PRでpytest自動実行(Python3.12)
 ├─ assets/app_icon_*.png      # iPad/iPhoneアプリ用アイコン（PWA）
 ├─ .streamlit/secrets.toml.example  # gsheets接続の雛形（実secretsはgitignore）
 ├─ surgery_app/
