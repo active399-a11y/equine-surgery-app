@@ -43,11 +43,16 @@ st.caption(
     "所見の客観的記録と整理が目的です。最終判断は必ず術者が行ってください。"
 )
 
-# 現在の保存先を明示（クラウド常時稼働 / このPC内）
+# 現在の保存先を明示
 if storage.backend_name() == "gsheets":
-    st.caption("💾 保存先: **Googleスプレッドシート（クラウド）**")
+    st.caption("💾 保存先: **Googleスプレッドシート（クラウドに永続保存）**")
 else:
-    st.caption("💾 保存先: **このPC内（data/）**　※クラウド保存にはsecrets設定が必要")
+    st.warning(
+        "💾 保存先: ローカル（このサーバーのディスク）。"
+        "**クラウドではアプリ再起動でデータが消えます。** "
+        "本番記録の前にGoogleスプレッドシート連携を設定してください（DEPLOY.md STEP 2）。",
+        icon="⚠️",
+    )
 
 with st.sidebar:
     st.header("症例設定")
