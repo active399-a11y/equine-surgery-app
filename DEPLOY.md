@@ -50,28 +50,31 @@
 
 ---
 
-## STEP 3. Streamlit Cloud でアプリを公開
-1. https://share.streamlit.io にGitHubアカウントでサインイン（無料）。
-2. 「Create app」→ STEP1のリポジトリ・ブランチ`main`・メインファイル`app.py` を指定。
-3. デプロイ前に「Advanced settings」→「Secrets」を開き、`.streamlit/secrets.toml.example`
-   の形式で内容を貼り付ける：
-   - `spreadsheet` … 2-1のシートURL
-   - `worksheet` … `cases`
-   - その下に、ダウンロードしたサービスアカウントJSONの各項目を転記
-     （`private_key` は改行を `\n` のまま1行で。example通りの形でOK）
-4. 「Deploy」。数分でビルドが終わり、`https://＜アプリ名＞.streamlit.app` という**固定URL**が出ます。
+## STEP 3. Streamlit Cloud でアプリを公開 ✅ 完了済み
+- デプロイ済み・固定URL: **https://equine-surgery-app-drixvmffbujfp7dj38lguu.streamlit.app/**
+- これ以降、コードを直して `git push` すると自動で再デプロイされます。
+- ※ Secrets（Googleシート連携）は未設定。設定するまではデータが永続化されません（STEP 2 を後で実施）。
+  設定方法: Streamlit Cloud の対象アプリ →「⋮」or Manage app →「Settings」→「Secrets」に
+  `.streamlit/secrets.toml.example` の形式で貼り付け → Save（自動再起動）。
 
-> これ以降、コードを直して `git push` すると自動で再デプロイされます。
+---
+
+## STEP 3.5. ★アプリを「公開」にする（最重要・朝イチでこれ）
+現状、アプリを開くと **ログイン画面に飛びます**（=非公開設定）。iPadでログインなしに使うには公開にします。
+1. https://share.streamlit.io → 対象アプリの「⋮」→ **Settings** →「Sharing」。
+2. 「Who can view this app」を **「This app is public」/「Anyone with the link」** に変更して保存。
+   - これで誰でもURL/QRから直接開けます（クリニック用ツール・個人情報は入力しない前提）。
+   - ※ 逆に「院外からは触らせたくない」なら非公開のまま、各iPadで一度ログイン運用でもOK（よりセキュア）。
 
 ---
 
 ## STEP 4. 会社のiPadにアイコンを置く
-1. iPadのSafariで STEP3 の固定URLを開く（QRにしたい場合は言ってください、作ります）。
+1. iPadのSafariで固定URL（上記）を開く。※QRコードはチャットに生成済み。
 2. 共有ボタン（□に↑）→ **「ホーム画面に追加」**。
 3. 名前「馬開腹判断支援」・専用アイコンが出るので「追加」。
 4. ホーム画面のアイコンから、全画面のアプリとして起動できます。
 
-これで毎回タップ一つ・どこでも・データはスプレッドシートに自動蓄積されます。
+これで毎回タップ一つ・どこでも・（STEP 2 設定後は）データはスプレッドシートに自動蓄積されます。
 
 ---
 
