@@ -1,7 +1,7 @@
 """storage_sheets（Googleスプレッドシート保存）のテスト。
 
-本物のGoogle接続は使わず、_conn を in-memory の DataFrame を保持する Fake に
-差し替えて、読み書きのロジックだけを検証する。
+本物のGoogle接続は使わず、_read_df / _write_df を in-memory の DataFrame を保持する
+Fake に差し替えて、save/load/update の公開ロジックだけを検証する。
 """
 
 from __future__ import annotations
@@ -9,36 +9,33 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-# storage_sheets はモジュール先頭で streamlit_gsheets を import するため、
+# storage_sheets はモジュール先頭で gspread / gspread_dataframe を import するため、
 # 未導入環境ではこのテストファイルごとスキップする。
-pytest.importorskip("streamlit_gsheets")
+pytest.importorskip("gspread")
+pytest.importorskip("gspread_dataframe")
 
 from surgery_app import config, storage_sheets  # noqa: E402
 
 
-class FakeConn:
-    """st.connection("gsheets") の代わり。1枚のDataFrameを保持する。"""
+class FakeSheet:
+    """シートの代わりに1枚のDataFrameを保持する。_read_df/_write_df を差し替える。"""
 
     def __init__(self) -> None:
-        # 最初は空（列だけ定義どおり）
         self.df = pd.DataFrame(columns=config.columns())
 
-    def read(self, worksheet=None, ttl=None):
-        # 実シートを模して、保持中のDataFrameのコピーを返す。
-        # 空でも config.columns() を列に持つ表を返す（_read_df の前提）。
-        if self.df.empty:
-            return pd.DataFrame(columns=config.columns())
+    def read(self) -> pd.DataFrame:
         return self.df.copy()
 
-    def update(self, worksheet=None, data=None):
-        self.df = data.copy().reset_index(drop=True)
+    def write(self, data: pd.DataFrame) -> None:
+        self.df = data[config.columns()].copy().reset_index(drop=True)
 
 
 @pytest.fixture
 def fake_conn(monkeypatch):
-    conn = FakeConn()
-    monkeypatch.setattr(storage_sheets, "_conn", lambda: conn)
-    return conn
+    sheet = FakeSheet()
+    monkeypatch.setattr(storage_sheets, "_read_df", sheet.read)
+    monkeypatch.setattr(storage_sheets, "_write_df", sheet.write)
+    return sheet
 
 
 def _record(case_id: str = "case-001", outcome: str = "生存") -> dict:
