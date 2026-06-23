@@ -46,13 +46,26 @@ def _client() -> gspread.Client:
 
 
 def _worksheet() -> gspread.Worksheet:
-    """毎回スプレッドシートを開き、cases タブを get-or-create して返す。"""
+    """毎回スプレッドシートを開き、cases タブを get-or-create して返す。
+
+    まず実在タブ名で直接照合し（キャッシュ非依存）、無ければ作成する。
+    作成時に競合（既に存在）した場合はメタデータを取り直して既存タブを返す。
+    """
     sh = _client().open_by_url(_secrets()["spreadsheet"])
+    # 実在するワークシートを名前で探す（fetch_sheet_metadata を都度実行）
+    for ws in sh.worksheets():
+        if ws.title == WORKSHEET:
+            return ws
+    cols = max(40, len(config.columns()) + 2)
     try:
-        return sh.worksheet(WORKSHEET)
-    except WorksheetNotFound:
-        cols = max(40, len(config.columns()) + 2)
         return sh.add_worksheet(title=WORKSHEET, rows=200, cols=cols)
+    except gspread.exceptions.APIError:
+        # 競合等。開き直して既存タブを返す
+        sh = _client().open_by_url(_secrets()["spreadsheet"])
+        for ws in sh.worksheets():
+            if ws.title == WORKSHEET:
+                return ws
+        raise
 
 
 def _read_df() -> pd.DataFrame:
