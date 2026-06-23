@@ -14,6 +14,7 @@ from datetime import datetime
 
 import pandas as pd
 import streamlit as st
+from gspread.exceptions import WorksheetNotFound
 from streamlit_gsheets import GSheetsConnection
 
 from surgery_app import config
@@ -40,7 +41,13 @@ def _read_df() -> pd.DataFrame:
 
 
 def _write_df(df: pd.DataFrame) -> None:
-    _conn().update(worksheet=WORKSHEET, data=df[config.columns()])
+    conn = _conn()
+    data = df[config.columns()]
+    try:
+        conn.update(worksheet=WORKSHEET, data=data)
+    except WorksheetNotFound:
+        # 指定タブ(cases)がまだ無い場合は自動作成して書き込む
+        conn.create(worksheet=WORKSHEET, data=data)
 
 
 def save_case(record: dict) -> str:
