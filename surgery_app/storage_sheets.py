@@ -20,7 +20,6 @@ from datetime import datetime
 import gspread
 import pandas as pd
 import streamlit as st
-from gspread.exceptions import WorksheetNotFound
 from gspread_dataframe import get_as_dataframe, set_with_dataframe
 
 from surgery_app import config
@@ -46,26 +45,18 @@ def _client() -> gspread.Client:
 
 
 def _worksheet() -> gspread.Worksheet:
-    """毎回スプレッドシートを開き、cases タブを get-or-create して返す。
+    """毎回スプレッドシートを開き、書き込み先のタブを返す（新規作成はしない）。
 
-    まず実在タブ名で直接照合し（キャッシュ非依存）、無ければ作成する。
-    作成時に競合（既に存在）した場合はメタデータを取り直して既存タブを返す。
+    タブ名 cases を寛容に照合（前後空白・大文字小文字を無視）。
+    見つからなければ最初のタブを使う。add_worksheet は呼ばないため
+    『addSheet already exists』エラーは発生し得ない。
     """
     sh = _client().open_by_url(_secrets()["spreadsheet"])
-    # 実在するワークシートを名前で探す（fetch_sheet_metadata を都度実行）
-    for ws in sh.worksheets():
-        if ws.title == WORKSHEET:
+    worksheets = sh.worksheets()
+    for ws in worksheets:
+        if ws.title.strip().lower() == WORKSHEET:
             return ws
-    cols = max(40, len(config.columns()) + 2)
-    try:
-        return sh.add_worksheet(title=WORKSHEET, rows=200, cols=cols)
-    except gspread.exceptions.APIError:
-        # 競合等。開き直して既存タブを返す
-        sh = _client().open_by_url(_secrets()["spreadsheet"])
-        for ws in sh.worksheets():
-            if ws.title == WORKSHEET:
-                return ws
-        raise
+    return worksheets[0]
 
 
 def _read_df() -> pd.DataFrame:
