@@ -45,7 +45,7 @@ st.caption(
 
 # 現在の保存先を明示
 if storage.backend_name() == "gsheets":
-    st.caption("💾 保存先: **Googleスプレッドシート（クラウドに永続保存）** ・ build gs3")
+    st.caption("💾 保存先: **Googleスプレッドシート（クラウドに永続保存）**")
 else:
     st.warning(
         "💾 保存先: ローカル（このサーバーのディスク）。"
