@@ -12,6 +12,9 @@
 
 from __future__ import annotations
 
+import base64
+import io
+
 import streamlit as st
 from PIL import Image
 
@@ -24,6 +27,19 @@ try:
     _HAS_BACK_CAMERA = True
 except Exception:
     _HAS_BACK_CAMERA = False
+
+# アプリ内カメラ＋ドラッグ式ROI（自作コンポーネント）
+try:
+    from surgery_app.components.camera_roi import camera_roi_input
+    _HAS_APP_CAMERA = True
+except Exception:
+    _HAS_APP_CAMERA = False
+
+
+def _decode_dataurl(data_url: str) -> Image.Image:
+    """'data:image/jpeg;base64,...' を PIL.Image に変換する。"""
+    _, b64 = data_url.split(",", 1)
+    return Image.open(io.BytesIO(base64.b64decode(b64)))
 
 st.set_page_config(page_title="馬開腹手術 判断支援", page_icon="🐴", layout="wide")
 
@@ -86,38 +102,64 @@ def render_capture(slot_key: str, title: str, guidance: str,
     st.markdown(f"#### {title}")
     st.caption(guidance)
 
-    src_opts = (["背面カメラ"] if _HAS_BACK_CAMERA else []) + ["前面/PC", "ファイル"]
+    src_opts = (["アプリ内カメラ"] if _HAS_APP_CAMERA else []) \
+        + (["背面カメラ"] if _HAS_BACK_CAMERA else []) + ["前面/PC", "ファイル"]
     src = st.radio("取得方法", src_opts, horizontal=True,
                    key=f"src_{slot_key}", label_visibility="collapsed")
-    st.caption("📱 iPad/iPhoneで撮影ボタンが出ない時は「ファイル」→「写真を撮る」で"
-               "純正カメラ（背面・シャッター付き）が使えます。")
+    st.caption("📱 スマホ/iPadは「アプリ内カメラ」がおすすめ（背面カメラ＋シャッター、"
+               "◇を指でドラッグして解析位置を指定）。出ない時は「ファイル」→「写真を撮る」でも可。")
 
-    f = None
-    if src == "背面カメラ":
+    roi_from_camera = None  # アプリ内カメラで指定した (cx, cy, size)
+    if src == "アプリ内カメラ":
+        try:
+            result = camera_roi_input(size_default=25, key=f"cam2_{slot_key}")
+        except Exception:
+            result = None
+            st.info("アプリ内カメラは対応ブラウザ（スマホ/タブレット）で使えます。")
+        if result:
+            st.session_state[f"img_{slot_key}"] = _decode_dataurl(result["image"])
+            roi_from_camera = (result["cx"], result["cy"], result["size"])
+            st.session_state[f"roi_{slot_key}"] = roi_from_camera
+    elif src == "背面カメラ":
         f = back_camera_input(key=f"back_{slot_key}")
+        if f is not None:
+            st.session_state[f"img_{slot_key}"] = Image.open(f)
+            st.session_state.pop(f"roi_{slot_key}", None)
     elif src == "前面/PC":
         f = st.camera_input("撮影", label_visibility="collapsed", key=f"cam_{slot_key}")
+        if f is not None:
+            st.session_state[f"img_{slot_key}"] = Image.open(f)
+            st.session_state.pop(f"roi_{slot_key}", None)
     else:
         f = st.file_uploader("画像（JPG/PNG／カメラ撮影）", type=["jpg", "jpeg", "png"],
                              key=f"file_{slot_key}",
                              help="iPad/iPhoneではここから純正カメラで撮影できます。")
-    if f is not None:
-        st.session_state[f"img_{slot_key}"] = Image.open(f)
+        if f is not None:
+            st.session_state[f"img_{slot_key}"] = Image.open(f)
+            st.session_state.pop(f"roi_{slot_key}", None)
 
     image = st.session_state.get(f"img_{slot_key}")
     if image is None:
         st.info("画像を取得すると色診断が表示されます。")
         return None, None
 
-    c1, c2 = st.columns([1, 2])
-    with c1:
-        cx = st.slider("水平位置 %", 0, 100, 50, key=f"cx_{slot_key}")
-        cy = st.slider("垂直位置 %", 0, 100, 50, key=f"cy_{slot_key}")
-        size = st.slider("枠の大きさ %", 5, 80, 25, key=f"sz_{slot_key}")
-    roi = color_analysis.normalize_roi(cx, cy, size, image.width, image.height)
-    with c2:
+    # ROI: アプリ内カメラで指定済みならそれを使い、無ければスライダー
+    override = st.session_state.get(f"roi_{slot_key}")
+    if override is not None:
+        cx, cy, size = override
+        roi = color_analysis.normalize_roi(cx, cy, size, image.width, image.height)
         st.image(color_analysis.draw_roi_overlay(image, roi),
-                 caption="水色の枠が解析対象", width="stretch")
+                 caption="水色の枠が解析対象（アプリ内カメラで指定）", width="stretch")
+    else:
+        c1, c2 = st.columns([1, 2])
+        with c1:
+            cx = st.slider("水平位置 %", 0, 100, 50, key=f"cx_{slot_key}")
+            cy = st.slider("垂直位置 %", 0, 100, 50, key=f"cy_{slot_key}")
+            size = st.slider("枠の大きさ %", 5, 80, 25, key=f"sz_{slot_key}")
+        roi = color_analysis.normalize_roi(cx, cy, size, image.width, image.height)
+        with c2:
+            st.image(color_analysis.draw_roi_overlay(image, roi),
+                     caption="水色の枠が解析対象", width="stretch")
 
     m = color_analysis.analyze_roi(image, roi)
     mc = st.columns(4)

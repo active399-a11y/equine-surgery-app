@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<style>
+  * { box-sizing: border-box; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, "Hiragino Kaku Gothic ProN", sans-serif; }
+  #app { padding: 4px; }
+  #stage { position: relative; width: 100%; background: #000; border-radius: 10px; overflow: hidden; }
+  video, #shot { display: block; width: 100%; height: auto; }
+  #shot { display: none; }
+  #overlay { position: absolute; inset: 0; display: none; touch-action: none; }
+  #box { position: absolute; border: 3px solid #00d0ff; box-shadow: 0 0 0 2px rgba(0,0,0,.4); transform: translate(-50%, -50%); pointer-events: none; }
+  #dot { position: absolute; width: 22px; height: 22px; background: #00d0ff; border: 2px solid #003; transform: translate(-50%, -50%) rotate(45deg); pointer-events: none; }
+  .btns { display: flex; gap: 8px; margin-top: 8px; }
+  button { flex: 1; font-size: 17px; font-weight: 600; padding: 14px 8px; border-radius: 10px; border: 1px solid #c2185b; background: #c2185b; color: #fff; }
+  button.sub { background: #fff; color: #c2185b; }
+  #shutter { font-size: 20px; padding: 18px 8px; }
+  .row { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 14px; color: #333; }
+  input[type=range] { flex: 1; }
+  #msg { color: #b00; font-size: 13px; margin-top: 6px; min-height: 16px; }
+  .hint { font-size: 12px; color: #666; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="shot"></canvas>
+    <div id="overlay">
+      <div id="box"></div>
+      <div id="dot"></div>
+    </div>
+  </div>
+
+  <div id="liveCtrls" class="btns">
+    <button id="shutter">● 撮影</button>
+  </div>
+
+  <div id="reviewCtrls" style="display:none">
+    <div class="row">
+      <span>枠サイズ</span>
+      <input id="size" type="range" min="5" max="80" value="25" />
+      <span id="sizeval">25%</span>
+    </div>
+    <div class="hint">画像を指でなぞると水色の◇（解析位置）が動きます。</div>
+    <div class="btns">
+      <button id="retake" class="sub">↺ 撮り直す</button>
+      <button id="confirm">✓ この位置で解析</button>
+    </div>
+  </div>
+  <div id="msg"></div>
+</div>
+
+<script>
+(function () {
+  var video = document.getElementById("video");
+  var shot = document.getElementById("shot");
+  var overlay = document.getElementById("overlay");
+  var box = document.getElementById("box");
+  var dot = document.getElementById("dot");
+  var msg = document.getElementById("msg");
+  var liveCtrls = document.getElementById("liveCtrls");
+  var reviewCtrls = document.getElementById("reviewCtrls");
+  var sizeEl = document.getElementById("size");
+  var sizeval = document.getElementById("sizeval");
+  var stream = null;
+  var cx = 50, cy = 50; // % (解析点の中心)
+
+  // --- Streamlit コンポーネント通信 ---
+  function send(type, extra) {
+    var m = { isStreamlitMessage: true, type: type };
+    if (extra) for (var k in extra) m[k] = extra[k];
+    window.parent.postMessage(m, "*");
+  }
+  function setHeight() {
+    send("streamlit:setFrameHeight", { height: document.body.scrollHeight + 4 });
+  }
+  function ready() { send("streamlit:componentReady", { apiVersion: 1 }); }
+  function setValue(v) {
+    send("streamlit:setComponentValue", { value: v, dataType: "json" });
+  }
+  window.addEventListener("message", function (e) {
+    if (e.data && e.data.type === "streamlit:render") {
+      var args = e.data.args || {};
+      if (args.size_default) { sizeEl.value = args.size_default; }
+      updateSizeLabel();
+      setHeight();
+    }
+  });
+
+  // --- カメラ起動 ---
+  function startCamera() {
+    reviewCtrls.style.display = "none";
+    overlay.style.display = "none";
+    shot.style.display = "none";
+    video.style.display = "block";
+    liveCtrls.style.display = "flex";
+    msg.textContent = "";
+    var constraints = { video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false };
+    navigator.mediaDevices.getUserMedia(constraints).then(function (s) {
+      stream = s; video.srcObject = s; video.play();
+      setTimeout(setHeight, 300);
+    }).catch(function (err) {
+      msg.textContent = "カメラを起動できません: " + err.name + "（HTTPS/カメラ許可をご確認ください）";
+      setHeight();
+    });
+  }
+  function stopCamera() {
+    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+  }
+
+  // --- 撮影 ---
+  document.getElementById("shutter").addEventListener("click", function () {
+    var w = video.videoWidth, h = video.videoHeight;
+    if (!w || !h) { msg.textContent = "まだカメラ準備中です。少し待って再度お試しください。"; return; }
+    shot.width = w; shot.height = h;
+    shot.getContext("2d").drawImage(video, 0, 0, w, h);
+    stopCamera();
+    video.style.display = "none";
+    shot.style.display = "block";
+    overlay.style.display = "block";
+    liveCtrls.style.display = "none";
+    reviewCtrls.style.display = "block";
+    cx = 50; cy = 50;
+    drawRoi();
+    setTimeout(setHeight, 100);
+  });
+
+  // --- ROI 描画 ---
+  function updateSizeLabel() { sizeval.textContent = sizeEl.value + "%"; }
+  function drawRoi() {
+    var rect = shot.getBoundingClientRect();
+    var W = shot.clientWidth, H = shot.clientHeight;
+    var side = (parseInt(sizeEl.value, 10) / 100) * Math.min(W, H);
+    box.style.width = side + "px";
+    box.style.height = side + "px";
+    box.style.left = (cx / 100 * W) + "px";
+    box.style.top = (cy / 100 * H) + "px";
+    dot.style.left = (cx / 100 * W) + "px";
+    dot.style.top = (cy / 100 * H) + "px";
+  }
+  sizeEl.addEventListener("input", function () { updateSizeLabel(); drawRoi(); });
+
+  // --- 指ドラッグで点を移動 ---
+  function moveTo(clientX, clientY) {
+    var r = shot.getBoundingClientRect();
+    var x = (clientX - r.left) / r.width * 100;
+    var y = (clientY - r.top) / r.height * 100;
+    cx = Math.max(0, Math.min(100, x));
+    cy = Math.max(0, Math.min(100, y));
+    drawRoi();
+  }
+  var dragging = false;
+  overlay.addEventListener("pointerdown", function (e) { dragging = true; moveTo(e.clientX, e.clientY); e.preventDefault(); });
+  overlay.addEventListener("pointermove", function (e) { if (dragging) { moveTo(e.clientX, e.clientY); e.preventDefault(); } });
+  overlay.addEventListener("pointerup", function () { dragging = false; });
+  overlay.addEventListener("pointercancel", function () { dragging = false; });
+  overlay.addEventListener("pointerleave", function () { dragging = false; });
+
+  // --- 撮り直し／確定 ---
+  document.getElementById("retake").addEventListener("click", startCamera);
+  document.getElementById("confirm").addEventListener("click", function () {
+    var data = shot.toDataURL("image/jpeg", 0.85);
+    setValue({ image: data, cx: cx, cy: cy, size: parseInt(sizeEl.value, 10), ts: Date.now() });
+  });
+
+  window.addEventListener("resize", drawRoi);
+  ready();
+  updateSizeLabel();
+  startCamera();
+  setTimeout(setHeight, 500);
+})();
+</script>
+</body>
+</html>
