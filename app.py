@@ -89,6 +89,8 @@ def render_capture(slot_key: str, title: str, guidance: str,
     src_opts = (["背面カメラ"] if _HAS_BACK_CAMERA else []) + ["前面/PC", "ファイル"]
     src = st.radio("取得方法", src_opts, horizontal=True,
                    key=f"src_{slot_key}", label_visibility="collapsed")
+    st.caption("📱 iPad/iPhoneで撮影ボタンが出ない時は「ファイル」→「写真を撮る」で"
+               "純正カメラ（背面・シャッター付き）が使えます。")
 
     f = None
     if src == "背面カメラ":
@@ -96,8 +98,9 @@ def render_capture(slot_key: str, title: str, guidance: str,
     elif src == "前面/PC":
         f = st.camera_input("撮影", label_visibility="collapsed", key=f"cam_{slot_key}")
     else:
-        f = st.file_uploader("画像（JPG/PNG）", type=["jpg", "jpeg", "png"],
-                             key=f"file_{slot_key}")
+        f = st.file_uploader("画像（JPG/PNG／カメラ撮影）", type=["jpg", "jpeg", "png"],
+                             key=f"file_{slot_key}",
+                             help="iPad/iPhoneではここから純正カメラで撮影できます。")
     if f is not None:
         st.session_state[f"img_{slot_key}"] = Image.open(f)
 
