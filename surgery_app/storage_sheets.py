@@ -59,8 +59,12 @@ def _worksheet() -> gspread.Worksheet:
     return worksheets[0]
 
 
+@st.cache_data(ttl=300, show_spinner=False)
 def _read_df() -> pd.DataFrame:
-    """シート全体をDataFrameで読む。空・未作成時は定義列の空表を返す。"""
+    """シート全体をDataFrameで読む。空・未作成時は定義列の空表を返す。
+
+    毎操作でAPIを叩くと重いため結果をキャッシュ（保存/更新時に破棄）。
+    """
     try:
         ws = _worksheet()
         df = get_as_dataframe(ws, evaluate_formulas=True)
@@ -73,10 +77,18 @@ def _read_df() -> pd.DataFrame:
         return pd.DataFrame(columns=config.columns())
 
 
+def _clear_cache() -> None:
+    try:
+        _read_df.clear()
+    except Exception:
+        pass
+
+
 def _write_df(df: pd.DataFrame) -> None:
     ws = _worksheet()
     ws.clear()
     set_with_dataframe(ws, df[config.columns()])
+    _clear_cache()  # 書き込んだら次の読み込みは最新を取得
 
 
 def save_case(record: dict) -> str:

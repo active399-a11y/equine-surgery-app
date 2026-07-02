@@ -41,6 +41,16 @@ def _decode_dataurl(data_url: str) -> Image.Image:
     _, b64 = data_url.split(",", 1)
     return Image.open(io.BytesIO(base64.b64decode(b64)))
 
+
+def _fit(img: Image.Image, maxpx: int = 1600) -> Image.Image:
+    """大きすぎる写真を縮小して処理を軽くする（平均色は不変なので解析に影響なし）。"""
+    img = img.convert("RGB")
+    w, h = img.size
+    if max(w, h) <= maxpx:
+        return img
+    scale = maxpx / max(w, h)
+    return img.resize((int(w * scale), int(h * scale)))
+
 st.set_page_config(page_title="馬開腹手術 判断支援", page_icon="🐴", layout="wide")
 
 # iPad/iPhone で「ホーム画面に追加」した際にアプリ風（専用アイコン・全画面）にする
@@ -117,25 +127,25 @@ def render_capture(slot_key: str, title: str, guidance: str,
             result = None
             st.info("アプリ内カメラは対応ブラウザ（スマホ/タブレット）で使えます。")
         if result:
-            st.session_state[f"img_{slot_key}"] = _decode_dataurl(result["image"])
+            st.session_state[f"img_{slot_key}"] = _fit(_decode_dataurl(result["image"]))
             roi_from_camera = (result["cx"], result["cy"], result["size"])
             st.session_state[f"roi_{slot_key}"] = roi_from_camera
     elif src == "背面カメラ":
         f = back_camera_input(key=f"back_{slot_key}")
         if f is not None:
-            st.session_state[f"img_{slot_key}"] = Image.open(f)
+            st.session_state[f"img_{slot_key}"] = _fit(Image.open(f))
             st.session_state.pop(f"roi_{slot_key}", None)
     elif src == "前面/PC":
         f = st.camera_input("撮影", label_visibility="collapsed", key=f"cam_{slot_key}")
         if f is not None:
-            st.session_state[f"img_{slot_key}"] = Image.open(f)
+            st.session_state[f"img_{slot_key}"] = _fit(Image.open(f))
             st.session_state.pop(f"roi_{slot_key}", None)
     else:
         f = st.file_uploader("画像（JPG/PNG／カメラ撮影）", type=["jpg", "jpeg", "png"],
                              key=f"file_{slot_key}",
                              help="iPad/iPhoneではここから純正カメラで撮影できます。")
         if f is not None:
-            st.session_state[f"img_{slot_key}"] = Image.open(f)
+            st.session_state[f"img_{slot_key}"] = _fit(Image.open(f))
             st.session_state.pop(f"roi_{slot_key}", None)
 
     image = st.session_state.get(f"img_{slot_key}")
